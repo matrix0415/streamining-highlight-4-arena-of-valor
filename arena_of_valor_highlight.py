@@ -7,14 +7,22 @@ import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from keras import backend as K
 from keras.layers import Dense, GlobalMaxPool2D
 from keras.models import Model, load_model
 from keras.preprocessing import image
-from keras.applications import mobilenet
+from keras.applications import mobilenet, inception_v3
+from keras.utils import to_categorical
+from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard
 from squeezenet import SqueezeNet
 
+
 dataset_folder = 'dataset/demo'
+models_folder = 'models'
+nb_epoches = 100
 training_file_json = dataset_folder + '/training_file.json'
+gpu_avaliable = True if K.tensorflow_backend._get_available_gpus() else False
 
 
 def load_dataset(augmentation=False):
@@ -71,24 +79,54 @@ def training_video_segmentation(x_train, x_test, y_train, y_test, use_model):
         batch_size = 52
         model = mobilenet.MobileNet(input_shape=(224, 224, 3), include_top=False, weights='imagenet', pooling='avg')
         s_layer = Dense(y_test.shape[1], input_dim=1024, activation='softmax')(model.output)
+    elif use_model == 'inceptionv3':
+        batch_size = 38
+        model = inception_v3.InceptionV3(input_shape=(224, 224, 3), include_top=False, weights='imagenet', pooling='avg')
+        s_layer = Dense(y_test.shape[1], input_dim=1024, activation='softmax')(model.output)
+    else:
+        assert ValueError("Model: {} currently not support.".format(use_model))
 
     for layer in model.layers:
         layer.trainable = True
 
+    if not gpu_avaliable:
+        batch_size = 256
+
     m = Model(model.input, s_layer)
     m.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     print(m.summary())
-    m.fit(x_train, y_train, epochs=100, batch_size=batch_size, validation_split=0.3, shuffle=True)
+
+    callbacks = None
+
+    start = time.perf_counter()
+    m.fit(x_train, y_train,
+          epochs=nb_epoches,
+          batch_size=batch_size,
+          validation_split=0.3,
+          shuffle=True,
+          callbacks=callbacks)
+
+    time_spend = time.perf_counter() - start
     acc = m.evaluate(x_test, y_test, batch_size=batch_size)
+    y_pred = m.predict(x_test)
+    print(y_test, y_pred)
+    print("Keras Accuracy: ", acc,
+          # "Accuracy: ", accuracy_score(y_test, y_pred),
+          # "Recall", recall_score(y_test, y_pred, average='weights'),
+          # "Precision", precision_score(y_test, y_pred, average='weights'),
+          # "f1-score", f1_score(y_test, y_pred, average='weights'),
+          " Training Spend: ", time_spend/60)
     m.save('{}.model.h5'.format(use_model))
-    print(acc)
 
 
-def predicting_video_segmentation_mobilenet(img_path):
+def predicting_video_segmentation(img_path, use_model):
     pred_num = 1
+    custom_obj = None
     classes = ['choose', 'dead', 'end', 'not play', 'playing', 'start']
     if not os.path.exists(img_path):
         raise ValueError("File: {} does not exist.".format(img_path))
+
+    # Load image files
     if os.path.isdir(img_path):
         img_path = [os.path.join(img_path, i) for i in os.listdir(img_path) if i != '.DS_Store']
         pred_num = len(img_path)
@@ -100,11 +138,17 @@ def predicting_video_segmentation_mobilenet(img_path):
         except Exception:
             os.remove(i)
     img = np.array(img)
-    pred = load_model('model.h5',
-                      custom_objects={'relu6': mobilenet.relu6, 'DepthwiseConv2D': mobilenet.DepthwiseConv2D})
+
+    # Load model
+    if use_model == 'mobilenet':
+        custom_obj = {'relu6': mobilenet.relu6, 'DepthwiseConv2D': mobilenet.DepthwiseConv2D}
+    pred = load_model('{}.model.h5'.format(use_model), custom_objects=custom_obj)
+
     start = time.perf_counter()
+    # Predict
     pd_rs = pred.predict(img)
     time_spend = time.perf_counter() - start
+
     rs = []
     for key, i in enumerate(img_path):
         rs.append({'key': int(i.split('.')[-2]),
@@ -119,12 +163,16 @@ def predicting_video_segmentation_mobilenet(img_path):
 
 @cbox.cmd
 def main(operation, img_path='', use_model='squeezenet'):
+    if not os.path.exists(dataset_folder):
+        assert ValueError, "Dataset folder is not exist: " + dataset_folder
+    if not os.path.exists(models_folder):
+        os.mkdir(models_folder)
     if operation == 'training-video-segmentation':
         x_train, x_test, y_train, y_test = load_dataset()
         training_video_segmentation(x_train, x_test, y_train, y_test, use_model=use_model)
 
     elif operation == 'predicting-video-segmentation':
-        predicting_video_segmentation_mobilenet(img_path=img_path)
+        predicting_video_segmentation(img_path=img_path, use_model=use_model)
 
 
 if __name__ == '__main__':
