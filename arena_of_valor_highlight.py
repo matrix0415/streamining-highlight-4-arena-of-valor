@@ -262,18 +262,17 @@ def main(operation='', path='', model_path='', use_model='squeezenet', classname
         img_path, pred = predicting_video_segmentation(img_path=path, model_path=model_path,
                                                        results_folder=results_folder)
 
-        for key, path in enumerate(sorted(img_path)):
+        for key, p in enumerate(sorted(img_path)):
             cls_index = int(np.argmax(pred[key]))
             s = classes[cls_index] + " : " + str(np.max(pred[key]))
-            img = Image.open(path)
+            img = Image.open(p)
             draw = ImageDraw.Draw(img)
             draw.text((100, 50), text=s, fill=tuple(color_index[cls_index]), font=font)
             img.resize((int(img.size[0]/2), int(img.size[1]/2)), Image.ANTIALIAS)
-            img.save(path)
+            img.save(p)
             if key % 1000 == 0:
                 print("Proccessing: {}/{}.".format(key, len(img_path)))
 
-        import pytest; pytest.set_trace()
         fname = os.path.basename(results_folder)
         clip = ImageSequenceClip(path, fps=25)
         clip.write_videofile(os.path.join(results_folder, fname + ".mp4"))
