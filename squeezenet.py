@@ -65,7 +65,7 @@ def SqueezeNet(include_top=True, weights=None, input_shape=None, pooling=None, c
             # x = _fc_layer(prev_layer=x, classes=classes)
             x = BatchNormalization()(x)
             x = GlobalAveragePooling2D()(x)
-            x = Dense(classes, input_dim=512, activation='sigmoid', name=u+'/fc/sigmoid')(x)
+            x = Dense(classes, input_dim=512, activation='softmax', name=u+'/fc/softmax')(x)
             # x = Conv2D(classes, (1, 1), padding='valid')(x)
             # x = Activation('softmax')(x)
             model = Model(input_tensor, x, name=u+"/squeezenet")
