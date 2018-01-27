@@ -2,7 +2,7 @@ import os
 import json
 import numpy as np
 import tensorflow as tf
-from sklearn.preprocessing import LabelBinarizer
+from sklearn.preprocessing import LabelBinarizer, MultiLabelBinarizer
 from tensorflow.python.saved_model import builder as saved_model_builder
 from tensorflow.python.saved_model import tag_constants, signature_constants
 from tensorflow.python.saved_model.signature_def_utils_impl import predict_signature_def
@@ -15,7 +15,7 @@ from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard, ReduceL
 def data_augmentation(folder, gen_pics, results_folder=None):
     if not os.path.isdir(folder):
         assert ValueError, "%s is not a folder." % folder
-    datagen = image.ImageDataGenerator(rotation_range=360, zoom_range=0.05, horizontal_flip=True, fill_mode='nearest')
+    datagen = image.ImageDataGenerator(rotation_range=80, zoom_range=0.3, horizontal_flip=True, fill_mode='nearest')
     for f in os.listdir(folder):
         if f != '.DS_Store' and 'augment' not in f:
             filename = f[:-4]
@@ -52,7 +52,7 @@ def load_dataset(dataset_folder, results_folder, target_size, img_preload=False)
 
     training_list = [{'file': os.path.join(fo, f), 'class': os.path.basename(fo)}
                      for fo, void, flist in os.walk(dataset_folder)
-                     for f in flist if fo != dataset_folder and f != '.DS_Store' and "augmentation" not in f]
+                     for f in flist if fo != dataset_folder and f != '.DS_Store']
 
     for t_file in training_list:
         if img_preload:
@@ -60,11 +60,11 @@ def load_dataset(dataset_folder, results_folder, target_size, img_preload=False)
             X.append(image.img_to_array(img))
         else:
             X.append(t_file['file'])
-        ori_y.append(t_file['class'])
+        ori_y.append(t_file['class'].split(','))
     X = np.array(X)  # .reshape(len(training_list), 128)
 
     # integer encode
-    binarizer = LabelBinarizer()
+    binarizer = MultiLabelBinarizer()
     y = binarizer.fit_transform(ori_y)
     classes = list(binarizer.classes_)
 
@@ -75,6 +75,16 @@ def load_dataset(dataset_folder, results_folder, target_size, img_preload=False)
         y = np.delete(y, c, 1)
         classes.pop(c)
 
+    # Split array
+    y_softmax_cat = set([k for i in ori_y for k in i if '-softmax-' in k])
+    y_softmax_col = sorted([classes.index(i) for i in y_softmax_cat])
+    y_softmax = y[::, min(y_softmax_col):max(y_softmax_col)+1]
+    y_sigmoid_cat = set([k for i in ori_y for k in i if '-sigmoid-' in k])
+    y_sigmoid_col = sorted([classes.index(i) for i in y_sigmoid_cat])
+    y_sigmoid = y[::, min(y_sigmoid_col):max(y_sigmoid_col)+1]
+    y = np.concatenate((y_softmax, y_sigmoid), axis=1)
+    classes = [i[9:] for i in classes]
+    classes = [classes[min(y_softmax_col):max(y_softmax_col)+1], classes[min(y_sigmoid_col):max(y_sigmoid_col)+1]]
     with open(label_file, 'w') as f:
         f.write(json.dumps(classes))
     return X, y, training_list
@@ -148,19 +158,18 @@ class DataGenerator:
         return X, sparsify(y)
 
 
-def training_callback(results_folder, use_model):
+def training_callback(results_folder, use_model="squeezenet"):
     tensorboard_folder = os.path.join(results_folder, "tensorboard_logs")
     if not os.path.isdir(tensorboard_folder):
         os.mkdir(tensorboard_folder)
-
     model_checkpoing = ModelCheckpoint(
-        os.path.join(results_folder, "%s.model.{epoch:03d}epoch.{val_acc:.3f}acc.h5" % use_model),
-        monitor='val_acc', verbose=0, save_best_only=True, save_weights_only=False, mode='auto', period=1)
-    reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.5, patience=5, min_lr=0.01)
-    early_stop = EarlyStopping(monitor='val_acc', min_delta=0.0001, patience=50, mode='auto', verbose=1)
-    tensorboard = TensorBoard(log_dir=tensorboard_folder, write_graph=True, write_images=True,
-                              embeddings_freq=1, embeddings_layer_names='fc/softmax')
-    return [reduce_lr, model_checkpoing, early_stop] # , tensorboard]
+        os.path.join(results_folder, "%s.model.{epoch:03d}epoch.{val_fc/softmax_acc:.3f}acc.h5" % use_model),
+        monitor='val_fc/softmax_acc', verbose=0, save_best_only=True, save_weights_only=False, mode='auto', period=1)
+    reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.2, patience=5, min_lr=0.01)
+    early_stop = EarlyStopping(monitor='val_fc/softmax_loss', min_delta=0.0001, patience=20, mode='auto', verbose=1)
+    tensorboard = TensorBoard(log_dir=tensorboard_folder, write_graph=True, write_images=True)
+    # , embeddings_freq=1, embeddings_layer_names='fc/softmax')
+    return [reduce_lr, model_checkpoing, early_stop, tensorboard]
 
 
 def export_to_tf_model(model_path, export_folder):
