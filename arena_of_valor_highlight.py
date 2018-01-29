@@ -213,12 +213,18 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
             basename = os.path.basename(path)[:-4]
             clip = VideoFileClip(path)
             clip.write_images_sequence(nameformat="{}/{}.frame.%05d.jpg".format(results_folder, basename), fps=5)
+            # for smaller file size.
+            for p in os.listdir(results_folder):
+                if '.jpg' in p:
+                    img = Image.open(os.path.join(results_folder, p))
+                    img = img.resize((int(img.size[0] * 0.7), int(img.size[1] * 0.7)), Image.ANTIALIAS)
+                    img.save(os.path.join(results_folder, p))
             path = results_folder
 
         print()
         # classes = load_class_labels(model_path=model_path, results_folder=results_folder)
         # color_index = np.random.choice(range(150, 255, 5), (max([len(i) for i in classes]), 3), replace=False)
-        font = ImageFont.truetype("OpenSans-Semibold.ttf", 40)
+        font = ImageFont.truetype("OpenSans-Semibold.ttf", 30)
 
         img_path, pred, rs = predicting_video_segmentation(img_path=path, model_path=model_path,
                                                            results_folder=results_folder)
@@ -232,18 +238,18 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
             img = Image.open(p['path'])
             draw = ImageDraw.Draw(img)
             status = p['status'].split('/')
-            draw.text((50, 20), text=status[0], fill=(255, 150, 150), font=font)
-            draw.text((50, 60), text=status[1], fill=(150, 255, 150), font=font)
+            draw.text((20, 10), text=status[0], fill=(255, 150, 150), font=font)
+            draw.text((20, 50), text=status[1], fill=(150, 255, 150), font=font)
             # if np.max(pred[key][1]) > 0.3:
             #     draw.text((10, 40), text=s_sigmoid, fill=tuple(color_index[cls_index_sigmoid]), font=font)
-            img = img.resize((int(img.size[0]*0.7), int(img.size[1]*0.7)), Image.ANTIALIAS)     # for smaller file size.
             img.save(p['path'])
 
             if key % 1000 == 0:
                 print("Proccessing: {}/{}.".format(key, len(img_path)))
 
+        filename = os.path.basename(img_path[0][:-10]) + ".mp4"
         clip = ImageSequenceClip(path, fps=10)
-        clip.write_videofile(os.path.join(results_folder, os.path.basename(p['path']) + ".mp4"), codec='libx264', threads=4)
+        clip.write_videofile(os.path.join(results_folder, filename), codec='libx264', threads=4)
         [os.remove(i) for i in img_path]
 
     if operation == 'video-clip':
