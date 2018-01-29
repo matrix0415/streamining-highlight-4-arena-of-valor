@@ -73,10 +73,13 @@ def predicting_video_segmentation(model_path, img_path, results_folder):
     if os.path.isdir(img_path):
         img_path = [os.path.join(img_path, i) for i in os.listdir(img_path)]
         img_path = [i for i in img_path if os.path.isfile(i)]
+        pred_num = len(img_path)
+    else:
+        img_path = [img_path]
+        pred_num = 1
 
     print("Len: {}, Predicting...".format(len(img_path)))
     pd_rs = []
-    pred_num = len(img_path)
 
     if 3000 > pred_num:
         img = []
@@ -158,6 +161,7 @@ def model_evaluate(model_path, x_test, y_test):
 
 @cbox.cmd
 def main(operation='', path='', model_path='', classname="", pickup_mode="copy"):
+    start = arrow.now()
     results_folder = os.path.join("results", arrow.now().format("YYYY-MM-DD-HH-mm-ss") + "-" + operation)
     os.makedirs(results_folder, exist_ok=True)
     [os.rmdir(os.path.join("results", i)) for i in os.listdir("results")
@@ -260,6 +264,7 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
         clip.write_images_sequence(nameformat="{}/{}.frame.%05d.jpg".format(results_folder, basename), fps=1)
 
     K.clear_session()
+    print("Spent: {} mins.".format((arrow.now()-start).seconds/60))
 
 
 if __name__ == '__main__':
