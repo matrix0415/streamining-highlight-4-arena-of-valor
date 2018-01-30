@@ -1,21 +1,22 @@
 import os
-import cbox
-import time
-import arrow
 import shutil
+import time
+
+import arrow
+import cbox
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from keras import backend as K
-from keras.preprocessing import image
 from keras.layers import Dense
 from keras.models import Model, load_model
+from keras.preprocessing import image
 from moviepy.editor import VideoFileClip, ImageSequenceClip
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score, recall_score, f1_score
+from sklearn.model_selection import train_test_split
 
-from soocii_streaming_highlight.squeezenet import SqueezeNet
-from soocii_streaming_highlight.utils import load_dataset, load_class_labels, training_callback, data_augmentation
-
+from soocii_streaming_highlight.libs.media_utils import video_to_img, img_to_video, resize_img
+from soocii_streaming_highlight.libs.squeezenet import SqueezeNet
+from soocii_streaming_highlight.libs.data_utils import load_dataset, load_class_labels, training_callback, data_augmentation
 
 target_size = (224, 224)
 target_epoches = 200
@@ -170,10 +171,10 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
 
     if operation == '':
         print("Operation List: ")
-        print("train: --path, --use-model")
+        print("train: --path")
         print("predict: --model-path, --path")
         print("image-augmentation: --path")
-        print("video-clip: --path")
+        print("video-to-img: --path")
         print("generate-prediction-result-to-video: --model-path, --path")
         print("pickup-prediction-result: --model-path, --path, --classname, --pickup-mode")
 
@@ -214,54 +215,30 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
         if not model_path or not path:
             assert ValueError, "Require --model-path & --path"
         if os.path.isfile(path):
-            basename = os.path.basename(path)[:-4]
-            clip = VideoFileClip(path)
-            clip.write_images_sequence(nameformat="{}/{}.frame.%05d.jpg".format(results_folder, basename), fps=5)
-            # for smaller file size.
-            for p in os.listdir(results_folder):
-                if '.jpg' in p:
-                    img = Image.open(os.path.join(results_folder, p))
-                    img = img.resize((int(img.size[0] * 0.7), int(img.size[1] * 0.7)), Image.ANTIALIAS)
-                    img.save(os.path.join(results_folder, p))
+            video_to_img(video_file=path, target_path=results_folder, fps=5)
+            resize_img(target_path=results_folder)
             path = results_folder
 
-        print()
-        # classes = load_class_labels(model_path=model_path, results_folder=results_folder)
-        # color_index = np.random.choice(range(150, 255, 5), (max([len(i) for i in classes]), 3), replace=False)
-        font = ImageFont.truetype("OpenSans-Semibold.ttf", 30)
-
+        font = ImageFont.truetype("conf/OpenSans-Semibold.ttf", 30)
         img_path, pred, rs = predicting_video_segmentation(img_path=path, model_path=model_path,
                                                            results_folder=results_folder)
 
         for key, p in enumerate(sorted(rs, key=lambda x: x['key'])):
-            # cls_index_softmax = int(np.argmax(pred[key][0]))
-            # cls_index_sigmoid = int(np.argmax(pred[key][1]))
-            # s_softmax = classes[0][cls_index_softmax] + " : " + str(np.max(pred[key][0]))
-            # s_sigmoid = classes[1][cls_index_sigmoid] + " : " + str(np.max(pred[key][1])) + " / " +
-            # str((pred[key][1]*100).astype(int))
             img = Image.open(p['path'])
             draw = ImageDraw.Draw(img)
             status = p['status'].split('/')
             draw.text((20, 10), text=status[0], fill=(255, 150, 150), font=font)
             draw.text((20, 50), text=status[1], fill=(150, 255, 150), font=font)
-            # if np.max(pred[key][1]) > 0.3:
-            #     draw.text((10, 40), text=s_sigmoid, fill=tuple(color_index[cls_index_sigmoid]), font=font)
             img.save(p['path'])
 
             if key % 1000 == 0:
                 print("Proccessing: {}/{}.".format(key, len(img_path)))
 
-        filename = os.path.basename(img_path[0][:-10]) + ".mp4"
-        clip = ImageSequenceClip(path, fps=10)
-        clip.write_videofile(os.path.join(results_folder, filename), codec='libx264', threads=4)
-        [os.remove(i) for i in img_path]
+        filename = os.path.join(results_folder, os.path.basename(img_path[0][:-10]) + ".mp4")
+        img_to_video(img_folder=path, target_file=filename)
 
-    if operation == 'video-clip':
-        if not os.path.isfile(path):
-            assert ValueError, "Video File doesn't exist. " + path
-        basename = os.path.basename(path)[:-4]
-        clip = VideoFileClip(path)
-        clip.write_images_sequence(nameformat="{}/{}.frame.%05d.jpg".format(results_folder, basename), fps=1)
+    if operation == 'video-to-img':
+        video_to_img(video_file=path, target_path=results_folder, fps=1)
 
     K.clear_session()
     print("Spent: {} mins.".format((arrow.now()-start).seconds/60))
