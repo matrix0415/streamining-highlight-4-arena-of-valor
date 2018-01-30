@@ -11,7 +11,7 @@ REPOSITORY = 'xavier'
 class XavierCiTools(CiTools):
     def build_docker_image(self, version, label):
         with BackendSecretsInS3():
-            return super(XavierCiTools).build_docker_image(version, label)
+            return super().build_docker_image(version, label)
 
 
 class BackendSecretsInS3:
