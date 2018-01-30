@@ -5,18 +5,18 @@ import time
 import arrow
 import cbox
 import numpy as np
+import pytest
 from PIL import Image, ImageDraw, ImageFont
 from keras import backend as K
 from keras.layers import Dense
 from keras.models import Model, load_model
 from keras.preprocessing import image
-from moviepy.editor import VideoFileClip, ImageSequenceClip
 from sklearn.metrics import precision_score, recall_score, f1_score
 from sklearn.model_selection import train_test_split
 
-from soocii_streaming_highlight.libs.media_utils import video_to_img, img_to_video, resize_img
-from soocii_streaming_highlight.libs.squeezenet import SqueezeNet
-from soocii_streaming_highlight.libs.data_utils import load_dataset, load_class_labels, training_callback, data_augmentation
+from libs.media_utils import video_to_img, img_to_video, resize_img
+from libs.squeezenet import SqueezeNet
+from libs.data_utils import load_dataset, load_class_labels, training_callback, data_augmentation
 
 target_size = (224, 224)
 target_epoches = 200
@@ -80,39 +80,21 @@ def predicting_video_segmentation(model_path, img_path, results_folder):
         pred_num = 1
 
     print("Len: {}, Predicting...".format(len(img_path)))
+
     pd_rs = []
-
-    if 3000 > pred_num:
-        img = []
-        for i in img_path:
-            try:
-                i_array = image.img_to_array(image.load_img(i, target_size=target_size))
-                img.append(i_array)
-            except Exception:
-                print("Remove: ", i)
-                os.remove(i)
-        img = np.array(img)
-
-        start = time.perf_counter()
-
+    start = time.perf_counter()
+    for i in img_path:
+        try:
+            i_array = image.img_to_array(image.load_img(i, target_size=target_size))
+        except Exception:
+            print("Remove: ", i)
+            os.remove(i)
         # Predict
-        pd_rs = pred.predict(img)
-        time_spend = time.perf_counter() - start
-    else:
-        start = time.perf_counter()
-        for i in img_path:
-            try:
-                i_array = image.img_to_array(image.load_img(i, target_size=target_size))
-                i_array = i_array.reshape(1, *i_array.shape)
-                # Predict
-                rs = pred.predict(i_array)
-                pd_rs.append([rs[0][0], rs[1][0]])
+        tmp_rs = pred.predict(i_array.reshape(1, *i_array.shape))
+        pd_rs.append([tmp_rs[0][0], tmp_rs[1][0]])
 
-            except Exception:
-                print("Remove: ", i)
-                os.remove(i)
-        time_spend = time.perf_counter() - start
-        pd_rs = np.array(pd_rs)
+    time_spend = time.perf_counter() - start
+    pd_rs = np.array(pd_rs)
 
     rs = []
     for key, i in enumerate(img_path):
@@ -126,8 +108,9 @@ def predicting_video_segmentation(model_path, img_path, results_folder):
                        'filename': os.path.basename(i),
                        'status':  "{}({:.2f}%)/{}({:.2f}%)".format(softmax, softmax_prob, sigmoid, sigmoid_prob),
                        'detail': ", ".join(["%02f" % i for i in np.concatenate(pd_rs[key])])})
-        except Exception:
-            import pytest; pytest.set_trace()
+        except Exception as e:
+            print("Exception: ", e)
+            pytest.set_trace()
 
     for key, i in enumerate(sorted(rs, key=lambda x: x['key'])):
         if key % 20 == 0:
@@ -163,7 +146,7 @@ def model_evaluate(model_path, x_test, y_test):
 @cbox.cmd
 def main(operation='', path='', model_path='', classname="", pickup_mode="copy"):
     start = arrow.now()
-    results_folder = os.path.join("results", arrow.now().format("YYYY-MM-DD-HH-mm-ss") + "-" + operation)
+    results_folder = os.path.join("results", operation + "-" + arrow.now().format("YYYYMMDD-HHmmss"))
     os.makedirs(results_folder, exist_ok=True)
     [os.rmdir(os.path.join("results", i)) for i in os.listdir("results")
      if os.path.join("results", i) != results_folder and os.path.isdir(i) and
@@ -215,7 +198,7 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
         if not model_path or not path:
             assert ValueError, "Require --model-path & --path"
         if os.path.isfile(path):
-            video_to_img(video_file=path, target_path=results_folder, fps=5)
+            video_to_img(video_file=path, target_path=results_folder, fps=1)
             resize_img(target_path=results_folder)
             path = results_folder
 
@@ -239,6 +222,9 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
 
     if operation == 'video-to-img':
         video_to_img(video_file=path, target_path=results_folder, fps=1)
+
+    if operation == 'export-highlight-moment':
+        pass
 
     K.clear_session()
     print("Spent: {} mins.".format((arrow.now()-start).seconds/60))

@@ -14,7 +14,7 @@ def video_to_img(video_file, target_path, fps=1):
 def img_to_video(img_folder, target_file, fps=10):
     clip = ImageSequenceClip(img_folder, fps=fps)
     clip.write_videofile(target_file, codec='libx264', threads=4)
-    [os.remove(i) for i in os.listdir(img_folder) if i[-4:] != '.mp4']
+    [os.remove(os.path.join(img_folder, i)) for i in os.listdir(img_folder) if i[-4:] != '.mp4']
 
 
 def resize_img(target_path, target_size=None):
