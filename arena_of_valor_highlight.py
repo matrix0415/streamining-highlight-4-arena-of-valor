@@ -13,8 +13,8 @@ from moviepy.editor import VideoFileClip, ImageSequenceClip
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score, recall_score, f1_score
 
-from squeezenet import SqueezeNet
-from utils import load_dataset, load_class_labels, training_callback, data_augmentation
+from soocii_streaming_highlight.squeezenet import SqueezeNet
+from soocii_streaming_highlight.utils import load_dataset, load_class_labels, training_callback, data_augmentation
 
 
 target_size = (224, 224)
