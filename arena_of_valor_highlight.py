@@ -235,11 +235,11 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
         video_file_name = os.path.basename(path)
         img_split_folder = os.path.join(results_folder, "split_images")
         os.makedirs(img_split_folder)
-        video_to_img(video_file=path, target_path=img_split_folder)
+        video_to_img(video_file=path, target_path=img_split_folder, fps=1)
         _, _, rs = predicting_video_segmentation(model_path=model_path, img_path=img_split_folder)
         rs = sorted(rs, key=lambda x: x['filename'])
         meta = {'video-path': video_file_name, 'prediction-results': rs}
-        with open(os.path.join(results_folder, "meta.json")) as f:
+        with open(os.path.join(results_folder, "meta.json"), 'w', encoding='utf-8') as f:
             f.write(json.dumps(meta, sort_keys=True, ensure_ascii=False, encoding='utf-8'))
         data = [[sec, val['softmax_cls'] if val['softmax_prob'] > 80 else "", val['sigmoid_cls']]
                 for sec, val in enumerate(rs)]
