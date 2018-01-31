@@ -256,7 +256,7 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
                            if len(data[i:i + ngram]) == 5 and
                            list(set([row[1] for row in data[i:i + ngram]])) == ['playing'] and
                            'kill' in [col for row in data[i:i + ngram] for col in row[2]]]
-        section_results = [[max(i-10, 0), i+3] for i in section_results]
+        section_results = [[max(i-5, 0), i+1] for i in section_results]
         section_results = [[i[0], max(i[1],
                                       max([k[1] for k in section_results[key:] if k and i[1] > k[0] > i[0]] or [0]))]
                            for key, i in enumerate(section_results)
