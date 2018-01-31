@@ -15,9 +15,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score, recall_score, f1_score
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 
-from soocii_streaming_highlight.libs.squeezenet import SqueezeNet
-from soocii_streaming_highlight.libs.media_utils import video_to_img, img_to_video, resize_img
-from soocii_streaming_highlight.libs.data_utils import load_dataset, load_class_labels, training_callback, data_augmentation
+from libs.squeezenet import SqueezeNet
+from libs.media_utils import video_to_img, img_to_video, resize_img
+from libs.data_utils import load_dataset, load_class_labels, training_callback, data_augmentation
 
 target_size = (224, 224)
 target_epoches = 200
