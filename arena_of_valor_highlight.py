@@ -234,6 +234,7 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
     if operation == 'export-highlight-moment':
         video_file_name = os.path.basename(path)
         img_split_folder = os.path.join(results_folder, "split_images")
+        os.makedirs(img_split_folder)
         video_to_img(video_file=path, target_path=img_split_folder)
         _, _, rs = predicting_video_segmentation(model_path=model_path, img_path=img_split_folder)
         rs = sorted(rs, key=lambda x: x['filename'])
