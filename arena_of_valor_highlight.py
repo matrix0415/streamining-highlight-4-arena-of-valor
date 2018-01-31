@@ -238,9 +238,14 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
         video_to_img(video_file=path, target_path=img_split_folder, fps=1)
         _, _, rs = predicting_video_segmentation(model_path=model_path, img_path=img_split_folder)
         rs = sorted(rs, key=lambda x: x['filename'])
+        for i in rs:
+            i['softmax_prob'] = i['softmax_prob'].tolist()
+            i['sigmoid_prob'] = i['sigmoid_prob'].tolist()
         meta = {'video-path': video_file_name, 'prediction-results': rs}
+
         with open(os.path.join(results_folder, "meta.json"), 'w', encoding='utf-8') as f:
             f.write(json.dumps(meta, sort_keys=True, ensure_ascii=False))
+
         data = [[sec, val['softmax_cls'] if val['softmax_prob'] > 80 else "", val['sigmoid_cls']]
                 for sec, val in enumerate(rs)]
         ngram = 5
