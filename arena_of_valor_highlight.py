@@ -234,7 +234,9 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
     if operation == 'export-highlight-moment':
         video_file_name = os.path.basename(path)
         img_split_folder = os.path.join(results_folder, "split_images")
+        video_sections_folder = os.path.join(results_folder, "video_sections")
         os.makedirs(img_split_folder)
+        os.makedirs(video_sections_folder)
         video_to_img(video_file=path, target_path=img_split_folder, fps=1)
         _, _, rs = predicting_video_segmentation(model_path=model_path, img_path=img_split_folder)
         rs = sorted(rs, key=lambda x: x['filename'])
@@ -254,10 +256,15 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
                            if len(data[i:i + ngram]) == 5 and
                            list(set([row[1] for row in data[i:i + ngram]])) == ['playing'] and
                            'kill' in [col for row in data[i:i + ngram] for col in row[2]]]
-        section_results = [[max(i-10, 0), i] for i in section_results]
+        section_results = [[max(i-10, 0), i+3] for i in section_results]
+        section_results = [i for i in section_results]
+
         [ffmpeg_extract_subclip(filename=path, t1=val[0], t2=val[1],
-                                targetname=os.path.join(results_folder, video_file_name+"_{%04d}.mp4" % key))
+                                targetname=os.path.join(video_sections_folder, video_file_name+"_%05d.mp4" % key))
          for key, val in enumerate(section_results)]
+
+        with open(os.path.join(results_folder, "video-sections.json"), 'w', encoding='utf-8') as f:
+            f.write(json.dumps(section_results, sort_keys=True, ensure_ascii=False))
 
     K.clear_session()
     print("Spent: {} mins.".format((arrow.now()-start).seconds/60))
