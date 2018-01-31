@@ -1,22 +1,23 @@
 import os
-import shutil
 import time
-
-import arrow
 import cbox
-import numpy as np
+import json
+import arrow
+import shutil
 import pytest
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from keras import backend as K
 from keras.layers import Dense
 from keras.models import Model, load_model
 from keras.preprocessing import image
-from sklearn.metrics import precision_score, recall_score, f1_score
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import precision_score, recall_score, f1_score
+from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 
-from libs.media_utils import video_to_img, img_to_video, resize_img
-from libs.squeezenet import SqueezeNet
-from libs.data_utils import load_dataset, load_class_labels, training_callback, data_augmentation
+from soocii_streaming_highlight.libs.squeezenet import SqueezeNet
+from soocii_streaming_highlight.libs.media_utils import video_to_img, img_to_video, resize_img
+from soocii_streaming_highlight.libs.data_utils import load_dataset, load_class_labels, training_callback, data_augmentation
 
 target_size = (224, 224)
 target_epoches = 200
@@ -60,7 +61,7 @@ def training_video_segmentation(x_train, x_test, y_train, y_test, results_folder
     model_evaluate(model_path=results_folder, x_test=x_test, y_test=y_test)
 
 
-def predicting_video_segmentation(model_path, img_path, results_folder):
+def predicting_video_segmentation(model_path, img_path, results_folder=None):
     custom_obj = None
     classes = load_class_labels(model_path=model_path, results_folder=results_folder)
     if not os.path.exists(img_path):
@@ -96,29 +97,35 @@ def predicting_video_segmentation(model_path, img_path, results_folder):
     time_spend = time.perf_counter() - start
     pd_rs = np.array(pd_rs)
 
-    rs = []
+    print_rs = []
     for key, i in enumerate(img_path):
         try:
             softmax = classes[0][int(np.argmax(pd_rs[key][0]))]
             softmax_prob = np.max(pd_rs[key][0]) * 100
-            sigmoid = classes[1][int(np.argmax(pd_rs[key][1]))] if np.max(pd_rs[key][1]) > 0.2 else ""
-            sigmoid_prob = np.max(pd_rs[key][1]) * 100
-            rs.append({'key': int(i.split('.')[-2]),
-                       'path': i,
-                       'filename': os.path.basename(i),
-                       'status':  "{}({:.2f}%)/{}({:.2f}%)".format(softmax, softmax_prob, sigmoid, sigmoid_prob),
-                       'detail': ", ".join(["%02f" % i for i in np.concatenate(pd_rs[key])])})
+            softmax_status_str = "{}({:.2f}%)".format(softmax, softmax_prob)
+            sigmoid = [classes[1][i[0]] for i in np.argwhere(pd_rs[key][1] > 0.2)]
+            sigmoid_prob = pd_rs[key][1][np.where(pd_rs[key][1] > 0.2)] * 100
+            sigmoid_status_str = "{}({:.2f}%)".format(", ".join(sigmoid), sigmoid_prob)
+            print_rs.append({'key': int(i.split('.')[-2]),
+                             'path': i,
+                             'filename': os.path.basename(i),
+                             'status': "{}/{}".format(softmax_status_str, sigmoid_status_str),
+                             'detail': ", ".join(["%02f" % i for i in np.concatenate(pd_rs[key])]),
+                             'softmax_cls': softmax,
+                             'softmax_prob': softmax_prob,
+                             'sigmoid_cls': sigmoid,
+                             'sigmoid_prob': sigmoid_prob})
         except Exception as e:
             print("Exception: ", e)
             pytest.set_trace()
 
-    for key, i in enumerate(sorted(rs, key=lambda x: x['key'])):
+    for key, i in enumerate(sorted(print_rs, key=lambda x: x['key'])):
         if key % 20 == 0:
             print('\t', '\t', '\t', '\t', '\t', classes)
         print("%04d" % i['key'], '\t', i['filename'][-20:], '\t', "%08s" % i['status'], '\t', i['detail'])
     print(pred_num, "rows", "\t", time_spend, "sec.", "\t", pred_num // time_spend, "fps.", "\t", arrow.now())
     print()
-    return img_path, pd_rs, rs
+    return img_path, pd_rs, print_rs
 
 
 def model_evaluate(model_path, x_test, y_test):
@@ -218,13 +225,18 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
                 print("Proccessing: {}/{}.".format(key, len(img_path)))
 
         filename = os.path.join(results_folder, os.path.basename(img_path[0][:-10]) + ".mp4")
-        img_to_video(img_folder=path, target_file=filename)
+        img_to_video(img_folder=path, target_file=filename, fps=3)
 
     if operation == 'video-to-img':
         video_to_img(video_file=path, target_path=results_folder, fps=1)
 
     if operation == 'export-highlight-moment':
-        pass
+        video_to_img(video_file=path, target_path=results_folder)
+        _, _, rs = predicting_video_segmentation(model_path=model_path, img_path=results_folder)
+        rs = sorted(rs, key=lambda x: x['filename'])
+        with open(os.path.join(results_folder, "meta.json")) as f:
+            f.write(json.dumps(rs, sort_keys=True, ensure_ascii=False, encoding='utf-8'))
+
 
     K.clear_session()
     print("Spent: {} mins.".format((arrow.now()-start).seconds/60))

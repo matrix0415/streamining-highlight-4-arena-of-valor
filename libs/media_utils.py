@@ -8,7 +8,7 @@ def video_to_img(video_file, target_path, fps=1):
         assert ValueError, "Video File doesn't exist. " + video_file
     basename = os.path.basename(video_file)[:-4]
     clip = VideoFileClip(video_file)
-    clip.write_images_sequence(nameformat="{}/{}.frame.%05d.jpg".format(target_path, basename), fps=fps)
+    clip.write_images_sequence(nameformat="{}/{}.frame.%06d.jpg".format(target_path, basename), fps=fps)
 
 
 def img_to_video(img_folder, target_file, fps=10):
