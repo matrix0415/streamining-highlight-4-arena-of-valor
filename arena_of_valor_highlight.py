@@ -105,7 +105,8 @@ def predicting_video_segmentation(model_path, img_path, results_folder=None):
             softmax_status_str = "{}({:.2f}%)".format(softmax, softmax_prob)
             sigmoid = [classes[1][i[0]] for i in np.argwhere(pd_rs[key][1] > 0.2)]
             sigmoid_prob = pd_rs[key][1][np.where(pd_rs[key][1] > 0.2)] * 100
-            sigmoid_status_str = "{}({:.2f}%)".format(", ".join(sigmoid), sigmoid_prob)
+            sigmoid_status_str = "{}({})".format(", ".join(sigmoid),
+                                                 ", ".join(["{:.2f}%".format(i) for i in sigmoid_prob]))
             print_rs.append({'key': int(i.split('.')[-2]),
                              'path': i,
                              'filename': os.path.basename(i),
