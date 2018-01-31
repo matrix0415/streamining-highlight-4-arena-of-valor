@@ -106,3 +106,4 @@ dataset
 /yolo/
 /soocii-dataset/
 /conf/pym_google_cloud_certificate.json
+/venv/
