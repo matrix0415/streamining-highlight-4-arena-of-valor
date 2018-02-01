@@ -1,9 +1,9 @@
 import os
-import shutil
 from PIL import Image
 from moviepy.config import get_setting
-from moviepy.editor import VideoFileClip, ImageSequenceClip
 from moviepy.tools import subprocess_call
+from moviepy.editor import VideoFileClip, ImageSequenceClip
+from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 
 
 def video_to_img(video_file, target_path, fps=1):
@@ -46,6 +46,25 @@ def resize_img(target_path, target_size=None):
             img.save(p)
 
 
+def video_subclip_ffmpeg(filename, t1, t2, targetname=None, reencode=False):
+    """ makes a new video file playing video file ``filename`` between
+        the times ``t1`` and ``t2``. """
+    if not reencode:
+        ffmpeg_extract_subclip(filename=filename, t1=t1, t2=t2, targetname=targetname)
+    else:
+        name, ext = os.path.splitext(filename)
+        if not targetname:
+            T1, T2 = [int(1000 * t) for t in [t1, t2]]
+            targetname = name + "%sSUB%d_%d.%s" % (name, T1, T2, ext)
+
+        cmd = [get_setting("FFMPEG_BINARY"), "-y",
+               "-i", filename,
+               "-ss", "%0.2f" % t1,
+               "-t", "%0.2f" % (t2 - t1),
+               "-c:v", "libx264", "-c:a", "aac", "-strict", "experimental", "-b:a", "128k", targetname]
+        subprocess_call(cmd)
+
+
 def concatenate_video_files(video_folder, target_file):
     if not os.path.isdir(video_folder):
         assert ValueError, "Video Folder is not a folder. " + video_folder
@@ -57,4 +76,3 @@ def concatenate_video_files(video_folder, target_file):
            "-i", os.path.join(video_folder, "list.txt"),
            "-c", "copy", target_file]
     subprocess_call(cmd)
-    shutil.rmtree(video_folder)

@@ -272,6 +272,8 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
             f.write(json.dumps(section_results, sort_keys=True, ensure_ascii=False))
         concatenate_video_files(video_folder=video_sections_folder,
                                 target_file=os.path.join(results_folder, video_file_name+"-highlight.mp4"))
+        shutil.rmtree(img_split_folder)
+        shutil.rmtree(video_sections_folder)
 
     K.clear_session()
     print("Spent: {} mins.".format((arrow.now()-start).seconds/60))
