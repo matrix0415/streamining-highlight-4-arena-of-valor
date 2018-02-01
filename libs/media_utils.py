@@ -61,7 +61,11 @@ def video_subclip_ffmpeg(filename, t1, t2, targetname=None, reencode=False):
                "-i", filename,
                "-ss", "%0.2f" % t1,
                "-t", "%0.2f" % (t2 - t1),
-               "-c:v", "libvpx-vp9", "-c:a", "aac", "-strict", "experimental", "-b:a", "128k", targetname]
+               "-c:v", "libx264",
+               "-c:a", "aac",
+               "-b:a", "64k",
+               "-strict", "experimental",
+               targetname]
         subprocess_call(cmd)
 
 
