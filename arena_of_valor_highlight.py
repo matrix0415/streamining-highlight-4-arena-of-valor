@@ -253,11 +253,13 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
         data = [[sec, val['softmax_cls'] if val['softmax_prob'] > 80 else "", val['sigmoid_cls']]
                 for sec, val in enumerate(rs)]
         ngram = 3
-        section_results = [max([detail[0] for detail in data[i-ngram:i]])
-                           for i in range(3, len(data))
-                           if len(data[i-ngram:i]) == ngram and
-                           list(set([row[1] for row in data[i-ngram:i]])) == ['playing'] and
-                           'kill' in data[i] or 'mvp' in data[i]]
+        section_results = [max([detail[0] for detail in data[i:i + ngram]])
+                           for i in range(0, len(data))
+                           if len(data[i:i + ngram]) == ngram and
+                           list(set([row[1] for row in data[i:i + ngram]])) == ['playing'] and
+                           'kill' in [col for row in data[i:i + ngram] for col in row[2]] or
+                           'mvp' in [col for row in data[i:i + ngram] for col in row[2]]
+                           ]
         section_results = [[max(i-2, 0), i+1] for i in section_results]
         section_results = [[i[0], max(i[1],
                                       max([k[1] for k in section_results[key:] if k and i[1] > k[0] > i[0]] or [0]))]
