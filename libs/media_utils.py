@@ -53,7 +53,7 @@ def concatenate_video_files(video_folder, target_file):
         f.write("\n".join(video_paths))
     cmd = [get_setting("FFMPEG_BINARY"), "-y",
            "-f", "concat",
-           "-i", "list.txt",
+           "-i", os.path.join(video_folder, "list.txt"),
            "-c", "copy", target_file]
     subprocess_call(cmd)
     os.removedirs(video_folder)
