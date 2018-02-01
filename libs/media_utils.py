@@ -1,4 +1,5 @@
 import os
+import shutil
 from PIL import Image
 from moviepy.config import get_setting
 from moviepy.editor import VideoFileClip, ImageSequenceClip
@@ -56,4 +57,4 @@ def concatenate_video_files(video_folder, target_file):
            "-i", os.path.join(video_folder, "list.txt"),
            "-c", "copy", target_file]
     subprocess_call(cmd)
-    os.removedirs(video_folder)
+    shutil.rmtree(video_folder)

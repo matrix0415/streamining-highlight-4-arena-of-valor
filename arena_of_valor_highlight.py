@@ -271,7 +271,7 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
         with open(os.path.join(results_folder, "video-sections.json"), 'w', encoding='utf-8') as f:
             f.write(json.dumps(section_results, sort_keys=True, ensure_ascii=False))
         concatenate_video_files(video_folder=video_sections_folder,
-                                target_file=os.path.join(results_folder, video_file_name+"highlight.mp4"))
+                                target_file=os.path.join(results_folder, video_file_name+"-highlight.mp4"))
 
     K.clear_session()
     print("Spent: {} mins.".format((arrow.now()-start).seconds/60))
