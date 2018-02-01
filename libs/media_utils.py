@@ -48,7 +48,7 @@ def resize_img(target_path, target_size=None):
 def concatenate_video_files(video_folder, target_file):
     if not os.path.isdir(video_folder):
         assert ValueError, "Video Folder is not a folder. " + video_folder
-    video_paths = [os.path.join(video_folder, i) for i in os.listdir(video_folder)]
+    video_paths = [os.path.join(video_folder, i) for i in sorted(os.listdir(video_folder))]
     cmd = [get_setting("FFMPEG_BINARY"), "-y",
            "-i", "concat:"+"|".join(video_paths),
            "-c", "copy", target_file]

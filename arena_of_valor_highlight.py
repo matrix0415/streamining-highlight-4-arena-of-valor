@@ -232,6 +232,8 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
         video_to_img_ffmpeg(video_file=path, target_path=results_folder, fps=1)
 
     if operation == 'export-highlight-moment':
+        if not path or not model_path:
+            assert ValueError, "Require --model-path & --path"
         video_file_name = os.path.basename(path)
         img_split_folder = os.path.join(results_folder, "split_images")
         video_sections_folder = os.path.join(results_folder, "video_sections")
@@ -268,7 +270,7 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
 
         with open(os.path.join(results_folder, "video-sections.json"), 'w', encoding='utf-8') as f:
             f.write(json.dumps(section_results, sort_keys=True, ensure_ascii=False))
-        concatenate_video_files(video_foler=video_sections_folder,
+        concatenate_video_files(video_folder=video_sections_folder,
                                 target_file=os.path.join(results_folder, video_file_name+"highlight.mp4"))
 
     K.clear_session()
