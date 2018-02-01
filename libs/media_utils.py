@@ -65,7 +65,7 @@ def video_subclip_ffmpeg(filename, t1, t2, targetname=None, reencode=False):
         subprocess_call(cmd)
 
 
-def concatenate_video_files(video_folder, target_file):
+def concatenate_videos_ffmpeg(video_folder, target_file):
     if not os.path.isdir(video_folder):
         assert ValueError, "Video Folder is not a folder. " + video_folder
     video_paths = ["file '%s'" % i for i in sorted(os.listdir(video_folder))]

@@ -17,7 +17,7 @@ from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 
 from libs.squeezenet import SqueezeNet
 from libs.data_utils import load_dataset, load_class_labels, training_callback, data_augmentation
-from libs.media_utils import video_to_img_ffmpeg, img_to_video, resize_img, concatenate_video_files
+from libs.media_utils import video_to_img_ffmpeg, img_to_video, resize_img, concatenate_videos_ffmpeg, video_subclip_ffmpeg
 
 target_size = (224, 224)
 target_epoches = 200
@@ -264,14 +264,15 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
                            for key, i in enumerate(section_results)
                            if key == 0 or i[0] > section_results[key - 1][1]]
 
-        [ffmpeg_extract_subclip(filename=path, t1=val[0], t2=val[1],
-                                targetname=os.path.join(video_sections_folder, video_file_name+"_%05d.mp4" % key))
+        [video_subclip_ffmpeg(filename=path, t1=val[0], t2=val[1],
+                              targetname=os.path.join(video_sections_folder, video_file_name+"_%05d.mp4" % key),
+                              reencode=True)
          for key, val in enumerate(section_results)]
 
         with open(os.path.join(results_folder, "video-sections.json"), 'w', encoding='utf-8') as f:
             f.write(json.dumps(section_results, sort_keys=True, ensure_ascii=False))
-        concatenate_video_files(video_folder=video_sections_folder,
-                                target_file=os.path.join(results_folder, video_file_name+"-highlight.mp4"))
+        concatenate_videos_ffmpeg(video_folder=video_sections_folder,
+                                  target_file=os.path.join(results_folder, video_file_name + "-highlight.mp4"))
         shutil.rmtree(img_split_folder)
         shutil.rmtree(video_sections_folder)
 
