@@ -252,13 +252,13 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
 
         data = [[sec, val['softmax_cls'] if val['softmax_prob'] > 80 else "", val['sigmoid_cls']]
                 for sec, val in enumerate(rs)]
-        ngram = 5
+        ngram = 3
         section_results = [max([detail[0] for detail in data[i:i + ngram]])
                            for i in range(0, len(data))
                            if len(data[i:i + ngram]) == ngram and
                            list(set([row[1] for row in data[i:i + ngram]])) == ['playing'] and
-                           'kill' in [col for row in data[i:i + ngram] for col in row[2]]]
-        section_results = [[max(i-5, 0), i+1] for i in section_results]
+                           'kill' in data[i + ngram] or 'mvp' in data[i + ngram]]
+        section_results = [[max(i-2, 0), i+1] for i in section_results]
         section_results = [[i[0], max(i[1],
                                       max([k[1] for k in section_results[key:] if k and i[1] > k[0] > i[0]] or [0]))]
                            for key, i in enumerate(section_results)
@@ -269,7 +269,7 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
                               reencode=True)
          for key, val in enumerate(section_results)]
 
-        with open(os.path.join(results_folder, "video-sections.json"), 'w', encoding='utf-8') as f:
+        with open(os.path.join(results_folder, "video_sections.json"), 'w', encoding='utf-8') as f:
             f.write(json.dumps(section_results, sort_keys=True, ensure_ascii=False))
         concatenate_videos_ffmpeg(video_folder=video_sections_folder,
                                   target_file=os.path.join(results_folder, video_file_name + "-highlight.mp4"))
