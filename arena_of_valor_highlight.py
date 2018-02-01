@@ -15,9 +15,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score, recall_score, f1_score
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 
-from soocii_streaming_highlight.libs.squeezenet import SqueezeNet
-from soocii_streaming_highlight.libs.media_utils import video_to_img_ffmpeg, img_to_video, resize_img
-from soocii_streaming_highlight.libs.data_utils import load_dataset, load_class_labels, training_callback, data_augmentation
+from libs.squeezenet import SqueezeNet
+from libs.data_utils import load_dataset, load_class_labels, training_callback, data_augmentation
+from libs.media_utils import video_to_img_ffmpeg, img_to_video, resize_img, concatenate_video_files
 
 target_size = (224, 224)
 target_epoches = 200
@@ -268,6 +268,8 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
 
         with open(os.path.join(results_folder, "video-sections.json"), 'w', encoding='utf-8') as f:
             f.write(json.dumps(section_results, sort_keys=True, ensure_ascii=False))
+        concatenate_video_files(video_foler=video_sections_folder,
+                                target_file=os.path.join(results_folder, video_file_name+"highlight.mp4"))
 
     K.clear_session()
     print("Spent: {} mins.".format((arrow.now()-start).seconds/60))
