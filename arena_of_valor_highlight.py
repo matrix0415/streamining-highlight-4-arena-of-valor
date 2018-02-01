@@ -16,7 +16,7 @@ from sklearn.metrics import precision_score, recall_score, f1_score
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 
 from libs.squeezenet import SqueezeNet
-from libs.media_utils import video_to_img, img_to_video, resize_img
+from libs.media_utils import video_to_img, video_to_img_ffmpeg, img_to_video, resize_img
 from libs.data_utils import load_dataset, load_class_labels, training_callback, data_augmentation
 
 target_size = (224, 224)
@@ -229,7 +229,7 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
         img_to_video(img_folder=path, target_file=filename, fps=3)
 
     if operation == 'video-to-img':
-        video_to_img(video_file=path, target_path=results_folder, fps=1)
+        video_to_img_ffmpeg(video_file=path, target_path=results_folder, fps=1)
 
     if operation == 'export-highlight-moment':
         video_file_name = os.path.basename(path)
@@ -253,7 +253,7 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
         ngram = 5
         section_results = [max([detail[0] for detail in data[i:i + ngram]])
                            for i in range(0, len(data))
-                           if len(data[i:i + ngram]) == 5 and
+                           if len(data[i:i + ngram]) == ngram and
                            list(set([row[1] for row in data[i:i + ngram]])) == ['playing'] and
                            'kill' in [col for row in data[i:i + ngram] for col in row[2]]]
         section_results = [[max(i-5, 0), i+1] for i in section_results]

@@ -1,6 +1,8 @@
 import os
 from PIL import Image
+from moviepy.config import get_setting
 from moviepy.editor import VideoFileClip, ImageSequenceClip
+from moviepy.tools import subprocess_call
 
 
 def video_to_img(video_file, target_path, fps=1):
@@ -9,6 +11,15 @@ def video_to_img(video_file, target_path, fps=1):
     basename = os.path.basename(video_file)[:-4]
     clip = VideoFileClip(video_file)
     clip.write_images_sequence(nameformat="{}/{}.frame.%06d.jpg".format(target_path, basename), fps=fps)
+
+
+def video_to_img_ffmpeg(video_file, target_path, fps=1):
+    if not os.path.isfile(video_file):
+        assert ValueError, "Video File doesn't exist. " + video_file
+    basename = os.path.basename(video_file)[:-4]
+    t_path = "{}/{}.frame.%06d.jpg".format(target_path, basename)
+    cmd = [get_setting("FFMPEG_BINARY"), "-i", video_file, "-vf fps=%f" % fps, t_path]
+    subprocess_call(cmd)
 
 
 def img_to_video(img_folder, target_file, fps=10):
