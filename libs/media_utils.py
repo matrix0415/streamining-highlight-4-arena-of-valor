@@ -18,7 +18,7 @@ def video_to_img_ffmpeg(video_file, target_path, fps=1):
         assert ValueError, "Video File doesn't exist. " + video_file
     basename = os.path.basename(video_file)[:-4]
     t_path = "{}/{}.frame.%06d.jpg".format(target_path, basename)
-    cmd = [get_setting("FFMPEG_BINARY"),
+    cmd = [get_setting("FFMPEG_BINARY"), "-y",
            "-i", video_file,
            "-vf", "fps=%f" % fps,
            t_path]

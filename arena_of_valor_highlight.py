@@ -15,9 +15,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score, recall_score, f1_score
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 
-from libs.squeezenet import SqueezeNet
-from libs.media_utils import video_to_img, video_to_img_ffmpeg, img_to_video, resize_img
-from libs.data_utils import load_dataset, load_class_labels, training_callback, data_augmentation
+from soocii_streaming_highlight.libs.squeezenet import SqueezeNet
+from soocii_streaming_highlight.libs.media_utils import video_to_img_ffmpeg, img_to_video, resize_img
+from soocii_streaming_highlight.libs.data_utils import load_dataset, load_class_labels, training_callback, data_augmentation
 
 target_size = (224, 224)
 target_epoches = 200
@@ -206,7 +206,7 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
         if not model_path or not path:
             assert ValueError, "Require --model-path & --path"
         if os.path.isfile(path):
-            video_to_img(video_file=path, target_path=results_folder, fps=1)
+            video_to_img_ffmpeg(video_file=path, target_path=results_folder, fps=1)
             resize_img(target_path=results_folder)
             path = results_folder
 
@@ -237,7 +237,7 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
         video_sections_folder = os.path.join(results_folder, "video_sections")
         os.makedirs(img_split_folder)
         os.makedirs(video_sections_folder)
-        video_to_img(video_file=path, target_path=img_split_folder, fps=1)
+        video_to_img_ffmpeg(video_file=path, target_path=img_split_folder, fps=1)
         _, _, rs = predicting_video_segmentation(model_path=model_path, img_path=img_split_folder)
         rs = sorted(rs, key=lambda x: x['filename'])
         for i in rs:
