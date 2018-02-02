@@ -17,3 +17,5 @@ urllib3
 ipython
 ipython-genutils
 soocii-services-lib
+google-cloud
+google-auth-oauthlib

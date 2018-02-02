@@ -9,11 +9,10 @@ import tempfile
 import subprocess
 import numpy as np
 from pathlib import Path
-# from ckip import CkipSegmenter
 from collections import Counter
 from multiprocessing import Process
 from shutil import move, rmtree, copyfileobj
-from moviepy.editor import VideoFileClip, concatenate_videoclips
+from moviepy.editor import VideoFileClip
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 
 
