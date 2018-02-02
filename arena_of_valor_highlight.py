@@ -13,11 +13,11 @@ from keras.models import Model, load_model
 from keras.preprocessing import image
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score, recall_score, f1_score
-from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 
 from libs.squeezenet import SqueezeNet
+from libs.gcp_utils import select_game_streaming_info
 from libs.data_utils import load_dataset, load_class_labels, training_callback, data_augmentation
-from libs.media_utils import video_to_img_ffmpeg, img_to_video, resize_img, concatenate_videos_ffmpeg, video_subclip_ffmpeg
+from libs.media_utils import video_to_img_ffmpeg, img_to_video, resize_img, concatenate_videos_ffmpeg, video_subclip_ffmpeg, download_file
 
 target_size = (224, 224)
 target_epoches = 200
@@ -152,7 +152,7 @@ def model_evaluate(model_path, x_test, y_test):
 
 
 @cbox.cmd
-def main(operation='', path='', model_path='', classname="", pickup_mode="copy"):
+def main(operation='', path='', model_path='', classname="", pickup_mode="copy", starts_from="", ends_to=""):
     start = arrow.now()
     results_folder = os.path.join("results", operation + "-" + arrow.now().format("YYYYMMDD-HHmmss"))
     os.makedirs(results_folder, exist_ok=True)
@@ -201,6 +201,54 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
                     img.crop((375, 105, 670, 180)).save(filebasename+".kill.jpg")       # 485, 105, 560, 180
                     img.crop((610, 105, 905, 180)).save(filebasename+".killed.jpg")     # 720, 105, 795, 180
         print("Result save in: ", results_folder)
+
+    if operation == 'generate-prediction-result-from-bq-to-json':
+        if not model_path:
+            assert ValueError, "Require --model-path"
+
+        data = []
+        prediction_results = {'model': model_path,
+                              'prediction_utctimestamp': arrow.utcnow().timestamp,
+                              'results': []}
+        starts_from = arrow.get(starts_from).timestamp
+        ends_to = arrow.get(ends_to).timestamp
+
+        if path and os.path.isfile(path):
+            try:
+                data = json.load(open(path, 'r', encoding='utf-8'))
+            except json.decoder.JSONDecodeError:
+                assert ValueError, "Path file just be a json file."
+        else:
+            path = 'dataset_collections_{}_to_{}.json'.format(starts_from, ends_to)
+            data = select_game_streaming_info(game_name="傳說對決",
+                                              starts_from_timestamp=starts_from, ends_to_timestamp=ends_to)
+        data = sorted(data, key=lambda x: x['streaming_start_at'])
+
+        for d in data:
+            print("Processing %s ..." % d['streaming_name'])
+            fps = 1
+            tmp_video_file = os.path.join(results_folder, d['streaming_name'])
+            img_split_folder = os.path.join(results_folder, "split_images_" + d['streaming_name'])
+            os.makedirs(img_split_folder)
+
+            download_file(url=d['streaming_url'], save_path=tmp_video_file)
+            video_to_img_ffmpeg(video_file=tmp_video_file, target_path=img_split_folder, fps=fps)
+            _, _, rs = predicting_video_segmentation(model_path=model_path, img_path=img_split_folder)
+            prediction_results['results'] = [{'key': i['key'], 'second': i['key'] / fps,
+                                              'probabilities': [float(i) for i in i['detail'].split(',')],
+                                              'sigmoid_cls': i['sigmoid_cls'],
+                                              'sigmoid_prob': i['sigmoid_prob'].tolist(),
+                                              'softmax_cls': i['softmax_cls'],
+                                              'softmax_prob': i['sigmoid_prob'],
+                                              'prediction_status': i['status']} for i in
+                                             sorted(rs, key=lambda x: x['filename'])]
+            d['prediction_results'] = prediction_results
+
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(json.dumps(data, sort_keys=True, ensure_ascii=False))
+
+            shutil.rmtree(img_split_folder)
+            os.remove(tmp_video_file)
 
     if operation == 'generate-prediction-result-to-video':
         if not model_path or not path:

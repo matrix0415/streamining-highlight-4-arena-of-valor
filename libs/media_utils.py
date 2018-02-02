@@ -1,9 +1,27 @@
 import os
+import  shutil
+import requests
 from PIL import Image
 from moviepy.config import get_setting
 from moviepy.tools import subprocess_call
 from moviepy.editor import VideoFileClip, ImageSequenceClip
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
+
+
+def download_file(url, save_path):
+    try:
+        print("Downloading {} ...".format(save_path.split('/')[-1]))
+        response = requests.get(url, stream=True)
+        if response.status_code == 200:
+            with open(save_path, 'wb') as f:
+                shutil.copyfileobj(response.raw, f)
+            del response
+            return [True, save_path]
+        else:
+            raise Exception("Access Denied, %s" % url)
+    except Exception as e:
+        print("Error: ", e)
+        return [False, e]
 
 
 def video_to_img(video_file, target_path, fps=1):
