@@ -166,6 +166,7 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy",
         print("predict: --model-path, --path")
         print("image-augmentation: --path")
         print("video-to-img: --path")
+        print("generate-prediction-result-from-bq-to-json: --model-path, --starts-from")
         print("generate-prediction-result-to-video: --model-path, --path")
         print("pickup-prediction-result: --model-path, --path, --classname, --pickup-mode")
 
@@ -231,19 +232,21 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy",
             img_split_folder = os.path.join(results_folder, "split_images_" + d['streaming_name'])
             os.makedirs(img_split_folder)
 
-            download_file(url=d['streaming_url'], save_path=tmp_video_file)
-            video_to_img_ffmpeg(video_file=tmp_video_file, target_path=img_split_folder, fps=fps)
-            _, _, rs = predicting_video_segmentation(model_path=model_path, img_path=img_split_folder)
-            prediction_results['results'] = [{'key': i['key'], 'second': i['key'] / fps,
-                                              'probabilities': [float(i) for i in i['detail'].split(',')],
-                                              'sigmoid_cls': i['sigmoid_cls'],
-                                              'sigmoid_prob': i['sigmoid_prob'].tolist(),
-                                              'softmax_cls': i['softmax_cls'],
-                                              'softmax_prob': i['sigmoid_prob'],
-                                              'prediction_status': i['status']} for i in
-                                             sorted(rs, key=lambda x: x['filename'])]
-            d['prediction_results'] = prediction_results
-
+            rs = download_file(url=d['streaming_url'], save_path=tmp_video_file)
+            if rs[0]:
+                video_to_img_ffmpeg(video_file=tmp_video_file, target_path=img_split_folder, fps=fps)
+                _, _, rs = predicting_video_segmentation(model_path=model_path, img_path=img_split_folder)
+                prediction_results['results'] = [{'key': i['key'], 'second': i['key'] / fps,
+                                                  'probabilities': [float(i) for i in i['detail'].split(',')],
+                                                  'sigmoid_cls': i['sigmoid_cls'],
+                                                  'sigmoid_prob': i['sigmoid_prob'].tolist(),
+                                                  'softmax_cls': i['softmax_cls'],
+                                                  'softmax_prob': i['sigmoid_prob'],
+                                                  'prediction_status': i['status']} for i in
+                                                 sorted(rs, key=lambda x: x['filename'])]
+                d['prediction_results'] = prediction_results
+            else:
+                print(rs[1])
             with open(path, 'w', encoding='utf-8') as f:
                 f.write(json.dumps(data, sort_keys=True, ensure_ascii=False))
 
