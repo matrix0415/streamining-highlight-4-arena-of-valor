@@ -256,9 +256,10 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy")
         section_results = [max([detail[0] for detail in data[i:i + ngram]])
                            for i in range(0, len(data))
                            if len(data[i:i + ngram]) == ngram and
-                           list(set([row[1] for row in data[i:i + ngram]])) == ['playing'] and (
-                           'kill' in [col for row in data[i:i + ngram] for col in row[2]] or
-                           'mvp' in [col for row in data[i:i + ngram] for col in row[2]])
+                           (list(set([row[1] for row in data[i:i + ngram]])) == ['playing'] and
+                           'kill' in [col for row in data[i:i + ngram] for col in row[2]]) or
+                           (list(set([row[1] for row in data[i:i + ngram - 3]])) == ['end'] and
+                           'mvp' in [col for row in data[i:i + ngram - 3] for col in row[2]])
                            ]
         section_results = [[max(i-1, 0), i] for i in section_results]
         section_results = [[i[0], max(i[1],
