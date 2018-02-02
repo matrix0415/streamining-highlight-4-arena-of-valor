@@ -203,8 +203,8 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy",
         print("Result save in: ", results_folder)
 
     if operation == 'generate-prediction-result-from-bq-to-json':
-        if not model_path:
-            assert ValueError, "Require --model-path"
+        if not model_path or not starts_from:
+            assert ValueError, "Require --model-path, --starts-from"
 
         data = []
         prediction_results = {'model': model_path,
