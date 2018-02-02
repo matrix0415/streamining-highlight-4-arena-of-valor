@@ -245,13 +245,14 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy",
                                                   'prediction_status': i['status']} for i in
                                                  sorted(rs, key=lambda x: x['filename'])]
                 d['prediction_results'] = prediction_results
+                os.remove(tmp_video_file)
             else:
                 print(rs[1])
+
             with open(path, 'w', encoding='utf-8') as f:
                 f.write(json.dumps(data, sort_keys=True, ensure_ascii=False))
 
             shutil.rmtree(img_split_folder)
-            os.remove(tmp_video_file)
 
     if operation == 'generate-prediction-result-to-video':
         if not model_path or not path:
