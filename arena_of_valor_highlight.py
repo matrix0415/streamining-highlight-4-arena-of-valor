@@ -61,14 +61,16 @@ def training_video_segmentation(x_train, x_test, y_train, y_test, results_folder
     model_evaluate(model_path=results_folder, x_test=x_test, y_test=y_test)
 
 
-def predicting_video_segmentation(model_path, img_path, results_folder=None):
-    custom_obj = None
+def predicting_video_segmentation(model_path, img_path, results_folder=None, model_obj=None):
     classes = load_class_labels(model_path=model_path, results_folder=results_folder)
     if not os.path.exists(img_path):
         raise ValueError("File: {} does not exist.".format(img_path))
 
     # Load model
-    pred = load_model(model_path, custom_objects=custom_obj)
+    if not model_obj:
+        pred = load_model(model_path)
+    else:
+        pred = model_obj
 
     # Load image files
     print("Loading image files...")
@@ -204,15 +206,14 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy",
         print("Result save in: ", results_folder)
 
     if operation == 'generate-prediction-result-from-bq-to-json':
-        if not model_path or not starts_from:
-            assert ValueError, "Require --model-path, --starts-from"
+        if not model_path:
+            assert ValueError, "Require --model-path"
 
         data = []
+        model = load_model(model_path)
         prediction_results = {'model': model_path,
                               'prediction_utctimestamp': arrow.utcnow().timestamp,
                               'results': []}
-        starts_from = arrow.get(starts_from).timestamp
-        ends_to = arrow.get(ends_to).timestamp
 
         if path and os.path.isfile(path):
             try:
@@ -220,39 +221,77 @@ def main(operation='', path='', model_path='', classname="", pickup_mode="copy",
             except json.decoder.JSONDecodeError:
                 assert ValueError, "Path file just be a json file."
         else:
-            path = 'dataset_collections_{}_to_{}.json'.format(starts_from, ends_to)
+            starts_from = arrow.get(starts_from).shift(hours=-8).timestamp
+            ends_to = arrow.get(ends_to).shift(hours=-8).timestamp
+            path = os.path.join(results_folder, 'dataset_collections_{}_to_{}.json'.format(starts_from, ends_to))
             data = select_game_streaming_info(game_name="傳說對決",
                                               starts_from_timestamp=starts_from, ends_to_timestamp=ends_to)
-        data = sorted(data, key=lambda x: x['streaming_start_at'])
+            data = sorted(data, key=lambda x: x['streaming_start_at'])
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(json.dumps(data, sort_keys=True, ensure_ascii=False, indent=2))
 
-        for d in data:
-            print("Processing %s ..." % d['streaming_name'])
+        data = [i for i in sorted(data, key=lambda x: x['streaming_start_at']) if i.get('streaming_exist')]
+        for key, d in enumerate(data):
+            rs = {}
             fps = 1
+            individual_path = os.path.join(results_folder, d['streaming_name'] + ".json")
             tmp_video_file = os.path.join(results_folder, d['streaming_name'])
-            img_split_folder = os.path.join(results_folder, "split_images_" + d['streaming_name'])
-            os.makedirs(img_split_folder)
+            print("Processing %s/%s %s ..." % (key, len(data), d['streaming_name']))
 
-            rs = download_file(url=d['streaming_url'], save_path=tmp_video_file)
-            if rs[0]:
+            if d['prediction_results_status']:
+                continue
+
+            rs = d
+            rs['exception'] = None
+            # rs['streaming_exist'] = False
+            rs['prediction_results'] = None
+            rs['prediction_results_status'] = False
+            d['prediction_results_status'] = False
+            # resp = requests.get('https://api.soocii.me/graph/v1.2/streaming_recalls',
+            #                     params={'streaming_names': d['streaming_name']},
+            #                     headers={'Authorization': "Bearer JNdNJriJ620nvj9RsyItfLvWkQhqWsXBxfN_V3JYivkIsgLB0hHujJWVGABBZQbLpgEVTztqbxPE83SE8cbibAnFyS1ECJ0-_kLEaGKrwTheFO-eOqm5TCCDHFCSkgtA4St7VmCaWNuzfEGInBrQqTkPE6vMbAdosWKqS6pGbS0NM3JQh9PyiYyHeck7b7PN2JXnh-IhckCjyozbdaWk8URKKpM9BYs-eUsK-BJhf9xOmW-U1RnrRcNHm4lDuSytrFhe22kMj9_EMYwJuweUwLyHc1d0-UupH962JJPDJBmJIYJ4J8ZnCoHDCVV6I_yr"}).json()
+            # if not resp['success']:
+            #     continue
+
+            # rs['streaming_status_id'] = resp['data'][0]['attached_status_id']
+            # rs['streaming_recall_id'] = resp['data'][0]['streaming_recall_id']
+            # rs['streaming_message_history_url'] = resp['data'][0]['message_history_url']
+            # rs['streaming_url'] = resp['data'][0]['streaming_recall_url']
+            download_resp = download_file(url=rs['streaming_url'], save_path=tmp_video_file)
+
+            if not download_resp[0]:
+                print(download_resp[1])
+                continue
+
+            try:
+                img_split_folder = os.path.join(results_folder, "split_images_" + d['streaming_name'])
+                os.makedirs(img_split_folder)
                 video_to_img_ffmpeg(video_file=tmp_video_file, target_path=img_split_folder, fps=fps)
-                _, _, rs = predicting_video_segmentation(model_path=model_path, img_path=img_split_folder)
+                _, _, pred = predicting_video_segmentation(model_path=model_path,
+                                                           img_path=img_split_folder, model_obj=model)
                 prediction_results['results'] = [{'key': i['key'], 'second': i['key'] / fps,
                                                   'probabilities': [float(i) for i in i['detail'].split(',')],
                                                   'sigmoid_cls': i['sigmoid_cls'],
                                                   'sigmoid_prob': i['sigmoid_prob'].tolist(),
                                                   'softmax_cls': i['softmax_cls'],
-                                                  'softmax_prob': i['sigmoid_prob'],
+                                                  'softmax_prob': i['sigmoid_prob'].tolist(),
                                                   'prediction_status': i['status']} for i in
-                                                 sorted(rs, key=lambda x: x['filename'])]
-                d['prediction_results'] = prediction_results
+                                                 sorted(pred, key=lambda x: x['filename'])]
+                rs['prediction_results'] = prediction_results
+                rs['streaming_exist'] = True
+                d['prediction_results_status'] = True
                 os.remove(tmp_video_file)
-            else:
-                print(rs[1])
-
-            with open(path, 'w', encoding='utf-8') as f:
-                f.write(json.dumps(data, sort_keys=True, ensure_ascii=False))
-
+                tmp_d = json.dumps(rs, sort_keys=True, ensure_ascii=False)
+                with open(individual_path, 'w', encoding='utf-8') as f:
+                    f.write(tmp_d)
+                del rs
+            except Exception as e:
+                print("Exception: ", e)
+                rs['exception'] = str(e)
             shutil.rmtree(img_split_folder)
+            tmp_d = json.dumps(data, sort_keys=True, ensure_ascii=False)
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(tmp_d)
 
     if operation == 'generate-prediction-result-to-video':
         if not model_path or not path:

@@ -8,7 +8,9 @@ RUN pip install --upgrade pip
 COPY ./requirements.txt /tmp/requirements.txt
 RUN pip install -r /tmp/requirements.txt
 
-RUN mkdir -p /var/www/secretagent
+RUN mkdir -p /var/www/xavier
 
-COPY ./ /var/www/secretagent
-WORKDIR /var/www/secretagent
+COPY ./ /var/www/xavier
+WORKDIR /var/www/xavier
+
+RUN python -c 'import imageio; imageio.plugins.ffmpeg.download()'
